@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const cloudinary = require('cloudinary');
 const fs = require('fs');
 const cron = require('node-cron');
+const express = require('express');
 
 
 const cloudinarySecret = process.env.PORT ?
@@ -15,9 +16,15 @@ cloudinary.config({
 });
 
 
-cron.schedule('* * * * *', () => {
-  console.log('Running tiktok scraper...');
-  init();
+
+const app = express();
+app.listen(process.env.PORT || 3000, () => {
+  console.log('App running...');
+
+  //cron.schedule('* * * * *', () => {
+    console.log('Running tiktok scraper...');
+    init();
+  //});
 });
 
 
