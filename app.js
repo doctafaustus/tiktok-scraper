@@ -75,6 +75,7 @@ async function tiktokScraper() {
   });
   const page = await browser.newPage();
   await page.goto('https://www.tiktok.com/@js_bits', { waitUntil: 'load' });
+  await page.$$('.tt-feed .image-card');
 
   const content = await page.evaluate(() => {
     const dataScript = document.querySelector('#__NEXT_DATA__');
