@@ -1,6 +1,8 @@
 const puppeteer = require('puppeteer');
 const cloudinary = require('cloudinary');
 const fs = require('fs');
+const cron = require('node-cron');
+
 
 const cloudinarySecret = process.env.PORT ?
   process.env.CLOUDINARY_SECRET : 
@@ -13,7 +15,10 @@ cloudinary.config({
 });
 
 
-init();
+cron.schedule('* * * * *', () => {
+  console.log('Running tiktok scraper...');
+  init();
+});
 
 
 async function init() {
@@ -46,6 +51,8 @@ async function uploadToCloudinary(content) {
       }
     });
   }
+
+  console.log('~~~ Process complete ~~~');
 }
 
 function stripSpecialChars(text) {
