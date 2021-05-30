@@ -75,27 +75,30 @@ async function tiktokScraper() {
   });
   const page = await browser.newPage();
   await page.goto('https://www.tiktok.com/@js_bits', { waitUntil: 'load' });
-  await page.$$('.tt-feed .image-card');
 
-  const content = await page.evaluate(() => {
-    const dataScript = document.querySelector('#__NEXT_DATA__');
-    const data = JSON.parse(dataScript.innerHTML);
-    const items = data.props.pageProps.items;
+  const data = await page.evaluate(() => document.querySelector('*').outerHTML);
+  console.log('DATA', data);
+  // await page.$$('.tt-feed .image-card');
 
-    return items.map(item => {
-      return { 
-        id: item.id,
-        title: item.desc.replace(/\s#.+/, ''),
-        createTime: `${item.createTime}000`
-      };
-    });
-  });
+  // const content = await page.evaluate(() => {
+  //   const dataScript = document.querySelector('#__NEXT_DATA__');
+  //   const data = JSON.parse(dataScript.innerHTML);
+  //   const items = data.props.pageProps.items;
 
-  // Note that Puppeteer only sees 4 video cards
-  const videoCards = await page.$$('.tt-feed .image-card');
-  for (let i = 0; i < 4; i++) {
-    await videoCards[i].screenshot({ path: `scraped-images/${content[i].id}.jpg` });  
-  }
+  //   return items.map(item => {
+  //     return { 
+  //       id: item.id,
+  //       title: item.desc.replace(/\s#.+/, ''),
+  //       createTime: `${item.createTime}000`
+  //     };
+  //   });
+  // });
+
+  // // Note that Puppeteer only sees 4 video cards
+  // const videoCards = await page.$$('.tt-feed .image-card');
+  // for (let i = 0; i < 4; i++) {
+  //   await videoCards[i].screenshot({ path: `scraped-images/${content[i].id}.jpg` });  
+  // }
 
   await browser.close();
   return content;
