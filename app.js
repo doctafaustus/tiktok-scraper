@@ -1,4 +1,5 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const stealthPlugin = require("puppeteer-extra-plugin-stealth")();
 const cloudinary = require('cloudinary');
 const fs = require('fs');
 const cron = require('node-cron');
@@ -15,6 +16,8 @@ cloudinary.config({
   api_secret: cloudinarySecret 
 });
 
+['chrome.runtime', 'navigator.languages'].forEach(a => stealthPlugin.enabledEvasions.delete(a));
+puppeteer.use(stealthPlugin);
 
 
 const app = express();
@@ -74,6 +77,9 @@ async function tiktokScraper() {
     args: ['--no-sandbox','--disable-setuid-sandbox']
   });
   const page = await browser.newPage();
+  await page.evaluateOnNewDocument(() => {
+    delete navigator.__proto__.webdriver;
+  });
   await page.goto('https://www.tiktok.com/@js_bits', { waitUntil: 'load' });
 
   const data = await page.evaluate(() => document.querySelector('*').outerHTML);
