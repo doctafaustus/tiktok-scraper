@@ -1,10 +1,6 @@
-const puppeteer = require('puppeteer-extra');
-const stealthPlugin = require("puppeteer-extra-plugin-stealth")();
+const puppeteer = require('puppeteer');
 const cloudinary = require('cloudinary');
 const fs = require('fs');
-const cron = require('node-cron');
-const express = require('express');
-
 
 const cloudinarySecret = process.env.PORT ?
   process.env.CLOUDINARY_SECRET : 
@@ -16,19 +12,9 @@ cloudinary.config({
   api_secret: cloudinarySecret 
 });
 
-['chrome.runtime', 'navigator.languages'].forEach(a => stealthPlugin.enabledEvasions.delete(a));
-puppeteer.use(stealthPlugin);
 
-
-const app = express();
-app.listen(process.env.PORT || 3000, () => {
-  console.log('App running...');
-
-  //cron.schedule('* * * * *', () => {
-    console.log('Running tiktok scraper...');
-    init();
-  //});
-});
+console.log('Running tiktok scraper...');
+init();
 
 
 async function init() {
@@ -71,40 +57,29 @@ function stripSpecialChars(text) {
 
 
 async function tiktokScraper() {
-
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox','--disable-setuid-sandbox']
-  });
+  const browser = await puppeteer.launch();
   const page = await browser.newPage();
-  await page.evaluateOnNewDocument(() => {
-    delete navigator.__proto__.webdriver;
-  });
   await page.goto('https://www.tiktok.com/@js_bits', { waitUntil: 'load' });
 
-  const data = await page.evaluate(() => document.querySelector('*').outerHTML);
-  console.log('DATA', data);
-  // await page.$$('.tt-feed .image-card');
+  const content = await page.evaluate(() => {
+    const dataScript = document.querySelector('#__NEXT_DATA__');
+    const data = JSON.parse(dataScript.innerHTML);
+    const items = data.props.pageProps.items;
 
-  // const content = await page.evaluate(() => {
-  //   const dataScript = document.querySelector('#__NEXT_DATA__');
-  //   const data = JSON.parse(dataScript.innerHTML);
-  //   const items = data.props.pageProps.items;
+    return items.map(item => {
+      return { 
+        id: item.id,
+        title: item.desc.replace(/\s#.+/, ''),
+        createTime: `${item.createTime}000`
+      };
+    });
+  });
 
-  //   return items.map(item => {
-  //     return { 
-  //       id: item.id,
-  //       title: item.desc.replace(/\s#.+/, ''),
-  //       createTime: `${item.createTime}000`
-  //     };
-  //   });
-  // });
-
-  // // Note that Puppeteer only sees 4 video cards
-  // const videoCards = await page.$$('.tt-feed .image-card');
-  // for (let i = 0; i < 4; i++) {
-  //   await videoCards[i].screenshot({ path: `scraped-images/${content[i].id}.jpg` });  
-  // }
+  // Note that Puppeteer only sees 4 video cards
+  const videoCards = await page.$$('.tt-feed .image-card');
+  for (let i = 0; i < 4; i++) {
+    await videoCards[i].screenshot({ path: `scraped-images/${content[i].id}.jpg` });  
+  }
 
   await browser.close();
   return content;
