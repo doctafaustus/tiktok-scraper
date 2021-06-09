@@ -9,7 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cloudinary": "^1.25.1",
-    "puppeteer": "^9.1.1"
+    "cheerio": "^1.0.0-rc.3",
+    "firebase-admin": "^9.9.0",
+    "request": "^2.88.2"
   }
 }

@@ -1,86 +1,42 @@
-const puppeteer = require('puppeteer');
-const cloudinary = require('cloudinary');
-const fs = require('fs');
+const admin = require('firebase-admin');
+const request = require('request');
+const $ = require('cheerio');
 
-const cloudinarySecret = process.env.PORT ?
-  process.env.CLOUDINARY_SECRET : 
-  fs.readFileSync(`${__dirname}/private/cloudinary_secret.txt`).toString();
 
-cloudinary.config({ 
-  cloud_name: 'dzynqn10l', 
-  api_key: '118568662192166', 
-  api_secret: cloudinarySecret 
-});
+// Cloudstore config
+const serviceAccount = require('./private/serviceAccountKey.json');
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+const db = admin.firestore();
 
 
 console.log('Running tiktok scraper...');
-init();
 
 
-async function init() {
-  const content = await tiktokScraper();
-  await uploadToCloudinary(content);
-}
+request('https://urlebird.com/user/js_bits/', (error, response, body) => {
+  if (error) return console.log('An error occurred retrieving TikTok data from UrleBird');
 
+  const tiktokData = [];
+  const $html = $.load(body);
 
-async function uploadToCloudinary(content) {
-  for (let i = 0; i < 4; i++) {
+  $html('.thumb').each(function(i, thumb) {
+    const $thumb = $.load(thumb);
+    const $image = $thumb('.img img');
 
-    const imageID = content[i].id;
-    const title = content[i].title;
-    const createTime = content[i].createTime;
-    const imageLocation = `${__dirname}/scraped-images/${imageID}.jpg`;
+    const id = ($thumb('.info + a').attr('href').match(/(\d{19,20})\/$/) || [])[1];
+    const img = /^https/.test($image.attr('src')) ? $image.attr('src') : $image.attr('data-src');
 
-    cloudinary.v2.api.resource(`tiktok/${imageID}`, async (err, result) => {
-      if (!result) {
-        await cloudinary.v2.uploader.upload(imageLocation, 
-          { 
-            context: `title=${stripSpecialChars(title)}|created=${createTime}|id=${imageID}`,
-            folder: 'tiktok', 
-            public_id: imageID,
-            tags: ['tiktok']
-          },
-          (error, result) => {
-            if (result) console.log(`${imageID} uploaded!`);
-          }
-        );
-      }
-    });
-  }
-
-  console.log('~~~ Process complete ~~~');
-}
-
-function stripSpecialChars(text) {
-  return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
-}
-
-
-async function tiktokScraper() {
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  await page.goto('https://www.tiktok.com/@js_bits', { waitUntil: 'load' });
-
-  const content = await page.evaluate(() => {
-    const dataScript = document.querySelector('#__NEXT_DATA__');
-    const data = JSON.parse(dataScript.innerHTML);
-    const items = data.props.pageProps.items;
-
-    return items.map(item => {
-      return { 
-        id: item.id,
-        title: item.desc.replace(/\s#.+/, ''),
-        createTime: `${item.createTime}000`
-      };
-    });
+    tiktokData.push({ id, img });
   });
 
-  // Note that Puppeteer only sees 4 video cards
-  const videoCards = await page.$$('.tt-feed .image-card');
-  for (let i = 0; i < 4; i++) {
-    await videoCards[i].screenshot({ path: `scraped-images/${content[i].id}.jpg` });  
-  }
+  saveToDB(JSON.stringify(tiktokData));
+});
 
-  await browser.close();
-  return content;
+function saveToDB(tiktokData) {
+  db.collection('tiktok-videos').doc('mainData').set({ tiktokVideos: tiktokData })
+  .then(() => {
+    console.log('Saved to DB!');
+  })
+  .catch(e => {
+    console.log('Error writing document:', e);
+  });
 }
